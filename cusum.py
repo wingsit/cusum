@@ -5,11 +5,11 @@ import csv, itertools
 import scikits.timeseries.lib.reportlib as rl
 import scipy.stats.mstats as stats
 from magic import thislist
-
+import datetime
 
 class Cusum(object):
     """two method are implemented (pys, pds)"""
-
+    verbose = False
     def __init__(self,er, threshold, fcn ="pds", **argv):
         """para should be a tuple of parameters for the underlying function"""
         fcndict = {"pds":self._pds, "pys":self._pys}
@@ -72,9 +72,10 @@ class Cusum(object):
             if len(i)==2:
                 if (i[0] < self.threshold and i[1] >= self.threshold)\
                         or (i[0] > -self.threshold and i[1] < -self.threshold):
-                    print self.cusum.dates[n+1],i            
+                    if self.verbose:
+                        print self.cusum.dates[n+1],i            
                     date.append(self.cusum.dates[n+1])
-        return self.cusum.dates[date]
+        return self.cusum[date]
 
 def cumwindow(a, start = 0):
     for  i in xrange(len(a[start:])):
@@ -89,8 +90,12 @@ def windows(iterable, length=2, overlap = 0):
         results.extend(itertools.islice(it, length-overlap))
     if results:
         yield results
-        
 
+def filterMngsByDate(mngs, date = 1):
+    date = ts.now('m') - date
+    def _filtermng(mng, date):
+        return len(mng.dates[mng.dates>date])
+    return [i for i in mngs if _filtermng(i[1], date)]
     
 if __name__ == "__main__":
     data = np.matrix(list(csv.reader(open("pmstar.csv", "r"))))
@@ -108,7 +113,18 @@ if __name__ == "__main__":
     
 #    s = serieses[1]
 #    t = Cusum(s, 4, fcn = "pds", para = (1,"twoside", 36)).train().getCrossOverDate()
-    for i in serieses:
-        print Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train().getCrossOverDate()
-        print 
-        
+    mngs = []
+    peer_size = len(serieses)
+    for n, (name, i) in enumerate(zip(desc, serieses)):
+        print float(n*100)/peer_size
+        s = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train().getCrossOverDate()
+        mngs.append( (name, s))
+
+    tmngs = filterMngsByDate(mngs, 1)
+    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 3)
+    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 6)
+    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 12)
+    print len(tmngs)        
