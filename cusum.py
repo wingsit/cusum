@@ -7,6 +7,7 @@ import scipy.stats.mstats as stats
 import datetime
 from magic import thislist
 from math import sqrt
+
 now = datetime.datetime.now
 
 class Cusum(object):
@@ -17,7 +18,7 @@ class Cusum(object):
             cusum: Cusum Time Series
             crossRecord: A list of nested tuples for the threshold crossing record
             """
-    verbose = True
+    verbose = False
     def __init__(self, er, threshold, fcn ="pds", **argv):
         """para should be a tuple of parameters for the underlying function"""
         fcndict = {"pds":self._pds, "pys":self._pys}
@@ -30,8 +31,7 @@ class Cusum(object):
         sigmas = [sigma, sigma]
         mgamma = 0.5*(1.0 - gamma)
         for er in windows(self.er[2:], 2, 1):
-            if len(er)==2:
-                sigmas.append(gamma*sigmas[-1] + mgamma * (er[1]-er[0])**2.0)
+            if len(er)==2: sigmas.append(gamma*sigmas[-1] + mgamma * (er[1]-er[0])**2.0)
         sigmas = map(sqrt, sigmas)
         irs = [12.0 * i[1] / i[0] for i in itertools.izip(sigmas, self.er[1:])]
         L = [0.0]
@@ -42,36 +42,46 @@ class Cusum(object):
             if l >= self.threshold:
                 self.crossRecord.append(((self.er.dates[len(L)-1], L[-1]), (self.er.dates[len(L)], l)))
                 L.append(0.0)
-            else:
-                L.append(l)
-#        for i in self.crossRecord: print i
+            else: L.append(l)
         self.cusum = ts.time_series(L, start_date = self.er.dates[0], dtype=float)
         
     def _pds(self, k, method = "twoside", nom = 36):
+        self.crossRecord = []
         __method__ = ("twoside","upper", "lower")
-        if method not in __method__:
-            raise
-        else:
-            self.method = method
+        if method not in __method__: raise
+        else: self.method = method
         sarl = []
         for n,i in enumerate(cumwindow(self.er,nom-1)):
             sar = (12.0 * self.er[n+nom-1] - ma.mean(i))/(ma.std(i, ddof = 1) * 3.4641016151377544)
             sarl.append(sar)
-            
+        cusums = [sarl[0]]
         if method == "twoside":
-            self.cusum = ts.time_series([sum(i) for i in cumwindow(sarl,1)], start_date = self.er.dates[0]+nom, dtype = float)
+            for i in sarls[1:]:
+                cu = cusums[-1] + i
+                if abs(cu) > self.threshold:
+                    cusums.append(0.0)
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                else: cusums.append(cu)
+            self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)
         elif method == "upper":
-            self.cusum = [max((0, sarl[0]-k))]
+            self.cusum = [max(0, sarl[0]-k)]
             for i in sarl[1:]:
-                self.cusum.append(max(0, i-k+self.cusum[-1]))
-            self.cusum = ts.time_series(self.cusum, start_date = self.er.dates[0]+nom, dtype=float)
+                cu = max(0, i-k+self.cusum[-1])
+                if abs(cu) > self.threshold:
+                    cusums.append(0.0)
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                else: cusums.append(cu)
+            self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         elif method == "lower":
             self.cusum = [max((0, -sarl[0]-k))]
             for i in sarl[1:]:
-                self.cusum.append(max(0, -i-k+self.cusum[-1]))
-            self.cusum = ts.time_series(self.cusum, start_date = self.er.dates[0]+nom, dtype=float)
-        else:
-            raise Exception("Uncaught Case")
+                cu = max(0, i-k+self.cusum[-1])
+                if abs(cu) > self.threshold:
+                    cusums.append(0.0)
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                else: cusums.append(cu)
+            self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
+        else: raise Exception("Uncaught Case")
 
     def train(self):
         if self.verbose: time1 = now()
@@ -81,16 +91,15 @@ class Cusum(object):
             print time2 - time1
         return self
 
-    def getCrossOverDate(self):
-        date = []
-        for n, i in enumerate(windows(self.cusum,2,1)):
-            if len(i)==2:
-                if (i[0] < self.threshold and i[1] >= self.threshold)\
-                        or (i[0] > -self.threshold and i[1] < -self.threshold):
-                    if self.verbose: print self.cusum.dates[n+1],i            
-                    date.append(self.cusum.dates[n+1])
-        return self.cusum[date]
+    def getCrossOverDate(self): return self.cusum[[d3 for ((d1,d2),(d3,d4)) in self.crossRecord]]
 
+    def countCrossOver(self, nom = None):
+        if nom == None:
+            return len(self.crossRecord)
+        else:
+            temp = self.getCrossOverDate()
+            return len([i for i in (temp.dates > (ts.now('m') - nom)) if i])
+        
 def cumwindow(a, start = 0):
     for  i in xrange(len(a[start:])):
         yield a[0:i+start]
@@ -102,18 +111,18 @@ def windows(iterable, length=2, overlap = 0):
         yield results
         results = results[length - overlap:]
         results.extend(itertools.islice(it, length-overlap))
-    if results:
-        yield results
+    if results: yield results
 
 def filterMngsByDate(mngs, date = 1):
     date = ts.now('m') - date
     def _filtermng(mng, date):
         return len(mng.dates[mng.dates>date])
     return [i for i in mngs if _filtermng(i[1], date)]
+
     
 if __name__ == "__main__":
-#    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
-    data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
+    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
+#    data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
     date = data[0,1:]
     desc = data[1:,0]
     data = np.array(data[1:,1:])
@@ -126,20 +135,25 @@ if __name__ == "__main__":
         
     mngs = []
     peer_size = len(serieses)
+    import csv
+    writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
-        print name
-#        s = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train().getCrossOverDate()
-        s = Cusum(i, 18, fcn = "pys", para = ()).train().getCrossOverDate() 
+        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+        s = c.getCrossOverDate()
+        writer.writerow((name , c.countCrossOver(1), c.countCrossOver(3), c.countCrossOver(6), c.countCrossOver(12), c.countCrossOver(24), c.countCrossOver(36)))
+
+#        s = Cusum(i, 18, fcn = "pys", para = ()).train().getCrossOverDate() 
         mngs.append( (name, s))
 
-    tmngs = filterMngsByDate(mngs, 12)
-    for i in tmngs:
-        print i
+    del writer
+
+
+    tmngs = filterMngsByDate(mngs, 1)
     print len(tmngs)        
-##    tmngs = filterMngsByDate(mngs, 3)
-##    print len(tmngs)        
-##    tmngs = filterMngsByDate(mngs, 6)
-##    print len(tmngs)        
-##    tmngs = filterMngsByDate(mngs, 12)
-##    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 3)
+    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 6)
+    print len(tmngs)        
+    tmngs = filterMngsByDate(mngs, 12)
+    print len(tmngs)        
     
