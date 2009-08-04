@@ -60,7 +60,7 @@ class Cusum(object):
                 cu = cusums[-1] + i
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)
         elif method == "upper":
@@ -69,7 +69,7 @@ class Cusum(object):
                 cu = max(0, i-k+self.cusum[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         elif method == "lower":
@@ -78,7 +78,7 @@ class Cusum(object):
                 cu = max(0, i-k+self.cusum[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         else: raise Exception("Uncaught Case")
@@ -138,11 +138,10 @@ if __name__ == "__main__":
     import csv
     writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
-        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+#        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+        c = Cusum(i, 18, fcn = "pys", para = ()).train() 
         s = c.getCrossOverDate()
         writer.writerow((name , c.countCrossOver(1), c.countCrossOver(3), c.countCrossOver(6), c.countCrossOver(12), c.countCrossOver(24), c.countCrossOver(36)))
-
-#        s = Cusum(i, 18, fcn = "pys", para = ()).train().getCrossOverDate() 
         mngs.append( (name, s))
 
     del writer
