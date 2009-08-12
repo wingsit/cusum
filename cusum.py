@@ -121,6 +121,10 @@ def filterMngsByDate(mngs, date = 1):
 
 
 def dataFormat(data):
+    """Parses out dates and managers from a csv, filters
+       out unknown values, and eliminates lists with under
+       60 known values."""
+    
     date = data[0,1:]
     desc = data[1:,0]
     data = np.array(data[1:,1:])
