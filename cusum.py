@@ -60,7 +60,7 @@ class Cusum(object):
                 cu = cusums[-1] + i
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)
         elif method == "upper":
@@ -69,7 +69,7 @@ class Cusum(object):
                 cu = max(0, i-k+cusums[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         elif method == "lower":
@@ -78,7 +78,7 @@ class Cusum(object):
                 cu = max(0, -i-k+cusums[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
-                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
+                    self.crossRecord.append(((self.er.dates[len(cusums)-1]+nom-1, cusums[-2]), (self.er.dates[len(cusums)-1]+nom, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         else: raise Exception("Uncaught Case")
@@ -135,32 +135,22 @@ def dataFormat(data):
     serieses = [ ts.time_series(i, start_date = first_date, dtype = float) for i in data]
     serieses = [i[i>-999] for i in [ma.masked_values(series, -999) for series in serieses] if len(i[i>-999]) > 60]
         
-    return serieses
+    return serieses, desc
 
 def main():
-    ##    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
     import csv #moved up to before this line
+    ##    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
     data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
-    date = data[0,1:]
-    desc = data[1:,0]
-    data = np.array(data[1:,1:])
-    first_date=ts.Date('M', '1999-01')
-    desc = list(map( lambda x: x[0,0], desc))
-#    format = [float] * len(desc)
-#    format = zip(desc, format)
-    serieses = [ ts.time_series(i, start_date = first_date, dtype = float) for i in data]
-    serieses = [i[i>-999] for i in [ma.masked_values(series, -999) for series in serieses] if len(i[i>-999]) > 60]
-        
+    serieses, desc  = dataFormat(data)
     mngs = []
     peer_size = len(serieses)
 ##    import csv
     writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
-        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+#        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+        c = Cusum(i, 18, fcn = "pys", para = ()).train() 
         s = c.getCrossOverDate()
         writer.writerow((name , c.countCrossOver(1), c.countCrossOver(3), c.countCrossOver(6), c.countCrossOver(12), c.countCrossOver(24), c.countCrossOver(36)))
-
-#        s = Cusum(i, 18, fcn = "pys", para = ()).train().getCrossOverDate() 
         mngs.append( (name, s))
 
     del writer
