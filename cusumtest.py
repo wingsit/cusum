@@ -2,6 +2,7 @@ import unittest as ut
 import cusum as cs
 import csv
 import numpy as np
+import scikits.timeseries as ts
 
 class cusumtest(ut.TestCase):
     def setUp(self):
@@ -16,6 +17,7 @@ class cusumtest(ut.TestCase):
         self.pyssuite.append(cs.Cusum(data[3], 1000, fcn = "pys", para = (7.5, 0.5, 0., 0.9, 1.0)))
         
     def testPds(self):
+        print "testPds"
         cusum = list(csv.reader(open("cusumpds.csv", "r")))
         outof = len(self.pdssuite)
         for n, case in enumerate(self.pdssuite):
@@ -29,6 +31,7 @@ class cusumtest(ut.TestCase):
                 self.assertAlmostEqual(i, float(truesum[n]))
 
     def testPys(self):
+        print "testPys"
         cusum = list(csv.reader(open("cusumpys.csv", "r")))
         outof = len(self.pyssuite)
         for n, case in enumerate(self.pyssuite):
@@ -42,23 +45,27 @@ class cusumtest(ut.TestCase):
                 self.assertAlmostEqual(i, float(truesum[n]))
 
     def testPdsDate(self):
+        print "testPdsDate"
         cusum = list(csv.reader(open("cusumpds.csv", "r")))
         outof = len(self.pdssuite)
         for n, case in enumerate(self.pdssuite):
             print n+1, '/', outof
             case.train()
             progdate = case.cusum.dates.tolist()
-            if dates[0] != ts.Date('M', '2001-8'):
+            if progdate[0] != ts.Date('M', '2001-8'):
                 raise AssertionError
 
     def testPysDate(self):
+        print "testPysDate"
         cusum = list(csv.reader(open("cusumpys.csv", "r")))
         outof = len(self.pyssuite)
         for n, case in enumerate(self.pyssuite):
             print n+1, '/', outof
             case.train()
             progdate = case.cusum.dates.tolist()
-            if dates[0] != ts.Date('M', '1999-1'):
+            print progdate[0]
+            print ts.Date('M', '1999-1')
+            if progdate[0] != ts.Date('M', '1999-1'):
                 raise AssertionError
 
 class thresholdtest(ut.TestCase):
@@ -66,8 +73,8 @@ class thresholdtest(ut.TestCase):
         self.pdssuite = []
         self.pyssuite = []
 
-        pdscross = {0:ts.Date('M', '2002-11'), 1:ts.Date('M', '2002-2'), 2:ts.Date('M', '2001-12')}
-        pyscross = {0:ts.Date('M', '1999-10')}
+        self.pdscross = {0:ts.Date('M', '2002-11'), 1:ts.Date('M', '2002-2'), 2:ts.Date('M', '2001-12')}
+        self.pyscross = {0:ts.Date('M', '1999-10')}
         
         data = np.matrix(list(csv.reader(open("test.csv", "r"))))
         data = cs.dataFormat(data)
@@ -77,6 +84,7 @@ class thresholdtest(ut.TestCase):
         self.pyssuite.append(cs.Cusum(data[3], 4, fcn = "pys", para = (7.5, 0.5, 0., 0.9, 1.0)))
 
     def testPds(self):
+        print "testPdsThresh"
         cusum = list(csv.reader(open("threshpds.csv", "r")))
         outof = len(self.pdssuite)
         for n, case in enumerate(self.pdssuite):
@@ -90,6 +98,7 @@ class thresholdtest(ut.TestCase):
                 self.assertAlmostEqual(i, float(truesum[n]))
 
     def testPys(self):
+        print "testPysThresh"
         cusum = list(csv.reader(open("threshpys.csv", "r")))
         outof = len(self.pyssuite)
         for n, case in enumerate(self.pyssuite):
@@ -103,6 +112,7 @@ class thresholdtest(ut.TestCase):
                 self.assertAlmostEqual(i, float(truesum[n]))
 
     def testPysCrossRecord(self):
+        print "testPysCrossRecord"
         cusum = list(csv.reader(open("cusumpys.csv", "r")))
         outof = len(self.pyssuite)
         for n, case in enumerate(self.pyssuite):
@@ -110,14 +120,15 @@ class thresholdtest(ut.TestCase):
             case.train()
             truesum = cusum[n]
             ind = 0
-            while truesum[ind] < case.threshold and ind < len(truesum):
+            while abs(float(truesum[ind])) <= case.threshold and ind < len(truesum):
                 ind += 1
-            if truesum[ind] != case.crossRecord.data.tolist()[0]:
-                raise AssertionError
-            if progdate[ind] != pyscross[n]:
+            self.assertAlmostEqual(float(truesum[ind]), case.crossRecord[0][1][1])
+            progdate = case.cusum.dates.tolist()
+            if progdate[ind] != self.pyscross[n]:
                 raise AssertionError
 
     def testPdsCrossRecord(self):
+        print "testPdsCrossRecord"
         cusum = list(csv.reader(open("cusumpds.csv", "r")))
         outof = len(self.pdssuite)
         for n, case in enumerate(self.pdssuite):
@@ -125,11 +136,10 @@ class thresholdtest(ut.TestCase):
             case.train()
             truesum = cusum[n]
             ind = 0
-            while truesum[ind] < case.threshold and ind < len(truesum):
+            while abs(float(truesum[ind])) < case.threshold and ind < len(truesum):
                 ind += 1
-            if truesum[ind] != case.crossRecord.data.tolist()[0]:
-                raise AssertionError
-            if progdate[ind] != pyscross[n]:
+            self.assertAlmostEqual(float(truesum[ind]), case.crossRecord[0][1][1])
+            if progdate[ind] != self.pdscross[n]:
                 raise AssertionError
 
 class handletest(ut.TestCase):
@@ -139,6 +149,7 @@ class handletest(ut.TestCase):
         self.na = cs.Cusum(self.data[0], 4, fcn = "pds", para = (1, "twoside", 36))
 
     def testNA(self):
+        print "testNA"
         proger = self.na.er
         trueer = [n + 1 for n in range(100)]
         if len(proger) != len(trueer):
@@ -147,6 +158,7 @@ class handletest(ut.TestCase):
             self.assertAlmostEqual(i, float(trueer[n]))
 
     def testLimit(self):
+        print "testLimit"
         try:
             self.limit = cs.Cusum(self.data[1], 4, fcn = "pds", para = (1, "twoside", 36))
             self.assertEqual(self.limit.er, [])
