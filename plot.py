@@ -11,11 +11,11 @@ import sys
 
 rcParams['legend.loc'] = 'best'
 
-def loglikelihood(N, mug, mub,niter=1000):
+def loglikelihood(N, mug, mub, mu= 0.5, niter=1000):
     arr = []
     for j in xrange(niter):
         l = [0.0]
-        ran = randn(N) + array([0.] * N)
+        ran = randn(N) + array([mu] * N)
 #        print ran
         for i in xrange(1,N):
             l.append(max(0, l[-1] + (mub-mug) *(ran[i] - 0.5* (mug+mub))))
@@ -27,7 +27,7 @@ def loglikelihood(N, mug, mub,niter=1000):
 def fig_1():
     figure(5)
 #    n, bins, patches = hist(randn(1000), 40, normed=1)
-    sample = loglikelihood(37, 0.5, 0.0)
+    sample = loglikelihood(25, 0.5, 0.0, - 0.5)
     n, bins, patches = hist(sample, 80, normed=1)
     l, = plot(bins, normpdf(bins, mean(sample), 1.0), 'r--', label='fit', linewidth=3)
     legend([l, patches[0]], ['fit', 'hist'])
@@ -47,9 +47,15 @@ def main():
         fn_name = "fig_%d" % fig
         fn = globals()[fn_name]
         fn()
-
     show()
 
+def main2():
+    for ir in [-0.5, 0, 0.5]:
+#        for t in [24,36,48,60,72,84]:
+        for t in [11,15,18,21,23,25]:
+            print ir, t
+            loglikelihood(t, 0.5, 0.0, ir)
 
 if __name__ == '__main__':
-    main()
+#    main()
+    main2()
