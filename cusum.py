@@ -56,7 +56,7 @@ class Cusum(object):
             sarl.append(sar)
         cusums = [sarl[0]]
         if method == "twoside":
-            for i in sarls[1:]:
+            for i in sarl[1:]:
                 cu = cusums[-1] + i
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
@@ -64,18 +64,18 @@ class Cusum(object):
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)
         elif method == "upper":
-            self.cusum = [max(0, sarl[0]-k)]
+            cusums = [max(0, sarl[0]-k)]
             for i in sarl[1:]:
-                cu = max(0, i-k+self.cusum[-1])
+                cu = max(0, i-k+cusums[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
                     self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
                 else: cusums.append(cu)
             self.cusum = ts.time_series(cusums, start_date = self.er.dates[0]+nom, dtype=float)                
         elif method == "lower":
-            self.cusum = [max((0, -sarl[0]-k))]
+            cusums = [max((0, -sarl[0]-k))]
             for i in sarl[1:]:
-                cu = max(0, i-k+self.cusum[-1])
+                cu = max(0, -i-k+cusums[-1])
                 if abs(cu) > self.threshold:
                     cusums.append(0.0)
                     self.crossRecord.append(((self.er.dates[len(cusums)-1]+35, cusums[-2]), (self.er.dates[len(cusums)-1]+36, cu)))
@@ -119,10 +119,24 @@ def filterMngsByDate(mngs, date = 1):
         return len(mng.dates[mng.dates>date])
     return [i for i in mngs if _filtermng(i[1], date)]
 
-    
-if __name__ == "__main__":
-    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
-#    data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
+
+def dataFormat(data):
+    date = data[0,1:]
+    desc = data[1:,0]
+    data = np.array(data[1:,1:])
+    first_date=ts.Date('M', '1999-01')
+    desc = list(map( lambda x: x[0,0], desc))
+#    format = [float] * len(desc)
+#    format = zip(desc, format)
+    serieses = [ ts.time_series(i, start_date = first_date, dtype = float) for i in data]
+    serieses = [i[i>-999] for i in [ma.masked_values(series, -999) for series in serieses] if len(i[i>-999]) > 60]
+        
+    return serieses
+
+def main():
+    ##    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
+    import csv #moved up to before this line
+    data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
     date = data[0,1:]
     desc = data[1:,0]
     data = np.array(data[1:,1:])
@@ -135,7 +149,7 @@ if __name__ == "__main__":
         
     mngs = []
     peer_size = len(serieses)
-    import csv
+##    import csv
     writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
         c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
@@ -155,5 +169,8 @@ if __name__ == "__main__":
     tmngs = filterMngsByDate(mngs, 6)
     print len(tmngs)        
     tmngs = filterMngsByDate(mngs, 12)
-    print len(tmngs)        
+    print len(tmngs)    
+    
+if __name__ == "__main__":
+    main()
     
