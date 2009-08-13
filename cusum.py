@@ -91,7 +91,11 @@ class Cusum(object):
             print time2 - time1
         return self
 
-    def getCrossOverDate(self): return self.cusum[[d3 for ((d1,d2),(d3,d4)) in self.crossRecord]]
+    def getCrossOverDate(self):
+        index = [d3 for ((d1,d2),(d3,d4)) in self.crossRecord]
+        print index
+        return self.cusum[index]
+    
 
     def countCrossOver(self, nom = None):
         if nom == None:
@@ -99,7 +103,12 @@ class Cusum(object):
         else:
             temp = self.getCrossOverDate()
             return len([i for i in (temp.dates > (ts.now('m') - nom)) if i])
-        
+    def __str__(self):
+        string = ""
+        for i in self.crossRecord:
+            string+=(str(i)+"\n")
+        return string            
+
 def cumwindow(a, start = 0):
     for  i in xrange(len(a[start:])):
         yield a[0:i+start]
@@ -138,9 +147,8 @@ def dataFormat(data):
     return serieses, desc
 
 def main():
-    import csv #moved up to before this line
     ##    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
-    data = np.matrix(list(csv.reader(open("spmstar.csv", "r"))))
+    data = np.matrix(list(csv.reader(open("pmstar.csv", "r"))))
     serieses, desc  = dataFormat(data)
     mngs = []
     peer_size = len(serieses)
@@ -148,10 +156,11 @@ def main():
     writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
 #        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
-        c = Cusum(i, 18, fcn = "pys", para = ()).train() 
+        c = Cusum(i, 18, fcn = "pys", para = ()).train()
+        print c
         s = c.getCrossOverDate()
         writer.writerow((name , c.countCrossOver(1), c.countCrossOver(3), c.countCrossOver(6), c.countCrossOver(12), c.countCrossOver(24), c.countCrossOver(36)))
-        mngs.append( (name, s))
+        mngs.append((name, s))
 
     del writer
 
