@@ -27,7 +27,8 @@ class Cusum(object):
         self._fcn = fcndict[fcn]
         self.para = argv.get("para")
 
-    def _pys(self, sigma = 7.5, mugood = 0.5, mubad = 0., gamma=0.9, std = 1.0):
+    def _pys(self, sigma = 0.75, mugood = 0.5, mubad = 0., gamma=0.9, std = 1.0):
+        """The methodologies suggested in Using Statistical Process Control To monitor Active managers"""
         sigmas = [sigma, sigma]
         mgamma = 0.5*(1.0 - gamma)
         for er in windows(self.er[2:], 2, 1):
@@ -37,10 +38,11 @@ class Cusum(object):
         L = [0.0]
         std = 1.0/(std**2.0)
         self.crossRecord = []
-        for i in irs:
+        for n, i in enumerate(irs):
             l = max(0.0, L[-1] + std*(mubad-mugood) * ( i - 0.5*(mugood+mubad)))
             if l >= self.threshold:
-                self.crossRecord.append(((self.er.dates[len(L)-1], L[-1]), (self.er.dates[len(L)], l)))
+                print ((self.er.dates[n-1], L[-1]), (self.er.dates[n], l))
+                self.crossRecord.append(((self.er.dates[n-1], L[-1]), (self.er.dates[n], l)))
                 L.append(0.0)
             else: L.append(l)
         self.cusum = ts.time_series(L, start_date = self.er.dates[0], dtype=float)
@@ -93,7 +95,6 @@ class Cusum(object):
 
     def getCrossOverDate(self):
         index = [d3 for ((d1,d2),(d3,d4)) in self.crossRecord]
-        print index
         return self.cusum[index]
     
 
@@ -103,6 +104,7 @@ class Cusum(object):
         else:
             temp = self.getCrossOverDate()
             return len([i for i in (temp.dates > (ts.now('m') - nom)) if i])
+
     def __str__(self):
         string = ""
         for i in self.crossRecord:
@@ -137,42 +139,41 @@ def dataFormat(data):
     date = data[0,1:]
     desc = data[1:,0]
     data = np.array(data[1:,1:])
-    first_date=ts.Date('M', '1999-01')
+    first_date=ts.Date('M', '1982-08')
     desc = list(map( lambda x: x[0,0], desc))
 #    format = [float] * len(desc)
 #    format = zip(desc, format)
     serieses = [ ts.time_series(i, start_date = first_date, dtype = float) for i in data]
-    serieses = [i[i>-999] for i in [ma.masked_values(series, -999) for series in serieses] if len(i[i>-999]) > 60]
-        
+    del data
+    print len(serieses)
+    serieses = [i[i>-999] for i in [ma.masked_values(series, -999) for series in serieses] if len(i[i>-999]) > 60] ##This line is so slow, we have to optimise it
+    print len(serieses)
+##    for i in itertools.izip(desc, map(len, serieses)):
+##        print i
     return serieses, desc
 
 def main():
     ##    data = np.matrix(list(csv.reader(open("large_growth.csv", "r"))))
-    data = np.matrix(list(csv.reader(open("pmstar.csv", "r"))))
+    data = np.matrix(list(csv.reader(open("pfourfund.csv", "r"))))
     serieses, desc  = dataFormat(data)
     mngs = []
     peer_size = len(serieses)
-##    import csv
-    writer = csv.writer(open("table.csv", "wb"))
     for n, (name, i) in enumerate(zip(desc, serieses)):
-#        c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
-        c = Cusum(i, 18, fcn = "pys", para = ()).train()
-        print c
+    #     c = Cusum(i, 4, fcn = "pds", para = (1,"lower", 36)).train()
+        c = Cusum(i, 30, fcn = "pys", para = ()).train()
         s = c.getCrossOverDate()
-        writer.writerow((name , c.countCrossOver(1), c.countCrossOver(3), c.countCrossOver(6), c.countCrossOver(12), c.countCrossOver(24), c.countCrossOver(36)))
         mngs.append((name, s))
+    for i in mngs:
+        print i
 
-    del writer
-
-
-    tmngs = filterMngsByDate(mngs, 1)
-    print len(tmngs)        
-    tmngs = filterMngsByDate(mngs, 3)
-    print len(tmngs)        
-    tmngs = filterMngsByDate(mngs, 6)
-    print len(tmngs)        
-    tmngs = filterMngsByDate(mngs, 12)
-    print len(tmngs)    
+##    tmngs = filterMngsByDate(mngs, 1)
+##    print len(tmngs)        
+##    tmngs = filterMngsByDate(mngs, 3)
+##    print len(tmngs)        
+##    tmngs = filterMngsByDate(mngs, 6)
+##    print len(tmngs)        
+##    tmngs = filterMngsByDate(mngs, 12)
+##    print len(tmngs)    
     
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 import csv
 from datetime import date
-reader = list(csv.reader(open("mstar.csv", "r")))
-writer = csv.writer(open("pmstar.csv", "w"))
+reader = list(csv.reader(open("fourfund.csv", "r")))
+writer = csv.writer(open("pfourfund.csv", "w"), dialect = csv.excel)
 reader = zip(*reader)[2:]
 reader = zip(*reader)
 
@@ -11,7 +11,12 @@ def cleanup(l):
             return float(i)
         except:
             if i == "NA":return -999
-            else: return i
+            elif "Excess" in i:
+                print i[-8:]
+                return i[-8:]
+            else:
+                return i
+                
     return map(mapper, l)
 
 reader = map(cleanup, reader)
